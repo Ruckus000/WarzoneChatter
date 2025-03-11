@@ -16,9 +16,16 @@ export class MemStorage implements IStorage {
 
   async saveConfig(insertConfig: InsertConfig): Promise<Config> {
     const config: Config = {
-      ...insertConfig,
-      id: this.currentId++
+      id: this.currentId++,
+      twitchChannel: insertConfig.twitchChannel,
+      twitchUsername: insertConfig.twitchUsername,
+      twitchToken: insertConfig.twitchToken,
+      enabled: insertConfig.enabled ?? true,
+      killMessageTemplate: insertConfig.killMessageTemplate ?? "(kills) enemies eliminated",
+      deathMessageTemplate: insertConfig.deathMessageTemplate ?? "Defeated in battle",
+      matchEndMessageTemplate: insertConfig.matchEndMessageTemplate ?? "Match complete with (kills) kills"
     };
+
     this.config = config;
     return config;
   }
@@ -27,12 +34,12 @@ export class MemStorage implements IStorage {
     if (!this.config) {
       throw new Error("No config exists to update");
     }
-    
+
     this.config = {
       ...this.config,
       ...updateConfig
     };
-    
+
     return this.config;
   }
 }

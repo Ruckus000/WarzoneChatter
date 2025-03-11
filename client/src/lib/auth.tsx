@@ -20,16 +20,36 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { data } = useQuery<{ authenticated: boolean; user: User }>({
+  const { data, refetch } = useQuery({
     queryKey: ["/api/auth/status"],
+    refetchOnWindowFocus: true,
+    gcTime: 0,
+    staleTime: 0
   });
 
   const { mutate: logout } = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/auth/logout");
-      queryClient.invalidateQueries();
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ["/api/config"] });
     },
   });
+
+  // Check auth status when URL changes (e.g., after OAuth callback)
+  useEffect(() => {
+    const checkAuth = () => {
+      if (window.location.search.includes("error=auth_failed")) {
+        console.error("Authentication failed");
+      } else {
+        refetch();
+      }
+    };
+
+    checkAuth();
+    // Add event listener for route changes
+    window.addEventListener('popstate', checkAuth);
+    return () => window.removeEventListener('popstate', checkAuth);
+  }, [refetch]);
 
   return (
     <AuthContext.Provider
