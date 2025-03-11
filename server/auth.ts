@@ -22,9 +22,7 @@ passport.use(
     {
       clientID: process.env.TWITCH_CLIENT_ID,
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
-      callbackURL: process.env.REPL_SLUG 
-        ? `https://${process.env.REPL_SLUG}.replit.app/api/auth/twitch/callback`
-        : "http://localhost:5000/api/auth/twitch/callback",
+      callbackURL: "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback",
       scope: ["chat:read", "chat:edit"],
     },
     async (_accessToken, _refreshToken, profile: any, done: any) => {
