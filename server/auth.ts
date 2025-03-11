@@ -1,5 +1,5 @@
 import passport from "passport";
-import { Strategy as TwitchStrategy } from "passport-twitch";
+import { Strategy as TwitchStrategy } from "passport-twitch-latest";
 import { storage } from "./storage";
 import type { Config } from "@shared/schema";
 
@@ -22,9 +22,11 @@ passport.use(
     {
       clientID: process.env.TWITCH_CLIENT_ID,
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
-      callbackURL: "/api/auth/twitch/callback",
+      callbackURL: process.env.REPL_SLUG 
+        ? `https://${process.env.REPL_SLUG}.replit.dev/api/auth/twitch/callback`
+        : "http://localhost:5000/api/auth/twitch/callback",
       scope: ["chat:read", "chat:edit"],
-    } as any,
+    },
     async (_accessToken, _refreshToken, profile: any, done: any) => {
       try {
         // Get or create config with Twitch credentials
