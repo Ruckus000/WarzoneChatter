@@ -12,12 +12,16 @@ passport.deserializeUser((user: any, done) => {
   done(null, user);
 });
 
+if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
+  throw new Error("Missing Twitch OAuth credentials");
+}
+
 // Setup Twitch Strategy
 passport.use(
   new TwitchStrategy(
     {
-      clientID: process.env.TWITCH_CLIENT_ID!,
-      clientSecret: process.env.TWITCH_CLIENT_SECRET!,
+      clientID: process.env.TWITCH_CLIENT_ID,
+      clientSecret: process.env.TWITCH_CLIENT_SECRET,
       callbackURL: "/api/auth/twitch/callback",
       scope: ["chat:read", "chat:edit"],
     },
@@ -30,7 +34,7 @@ passport.use(
           config = await storage.saveConfig({
             twitchChannel: profile.login,
             twitchUsername: profile.login,
-            twitchToken: accessToken,
+            twitchToken: `oauth:${accessToken}`,
             enabled: true,
             killMessageTemplate: "(kills) enemies eliminated",
             deathMessageTemplate: "Defeated in battle",
@@ -40,7 +44,7 @@ passport.use(
           config = await storage.updateConfig({
             twitchChannel: profile.login,
             twitchUsername: profile.login,
-            twitchToken: accessToken
+            twitchToken: `oauth:${accessToken}`
           });
         }
 
