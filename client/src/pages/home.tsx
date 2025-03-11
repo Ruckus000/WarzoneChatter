@@ -2,23 +2,27 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { SiTwitch } from "react-icons/si";
 import ConfigForm from "@/components/config-form";
 import MessageTemplate from "@/components/message-template";
 import type { Config } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
 
 export default function Home() {
   const { toast } = useToast();
-  
+  const { isAuthenticated, user, logout } = useAuth();
+
   const { data: config, isLoading } = useQuery<Config | null>({
     queryKey: ["/api/config"],
+    enabled: isAuthenticated,
   });
 
   const { mutate: saveConfig, isPending } = useMutation({
     mutationFn: async (config: Partial<Config>) => {
-      const method = config.id ? "PATCH" : "POST";
-      const res = await apiRequest(method, "/api/config", config);
+      const res = await apiRequest("PATCH", "/api/config", config);
       return res.json();
     },
     onSuccess: () => {
@@ -41,39 +45,81 @@ export default function Home() {
     return <div>Loading...</div>;
   }
 
-  return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-        Warzone Twitch Bot
-      </h1>
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          Warzone Twitch Bot
+        </h1>
 
-      <div className="grid gap-8">
         <Card>
-          <CardHeader>
-            <CardTitle>Connection Settings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ConfigForm 
-              config={config} 
-              onSubmit={saveConfig}
-              isPending={isPending}
-            />
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-semibold mb-4">Connect Your Twitch Account</h2>
+              <p className="text-muted-foreground mb-6">
+                Login with your Twitch account to start using the Warzone bot
+              </p>
+              <Button
+                size="lg"
+                className="bg-[#9146FF] hover:bg-[#7313FF]"
+                onClick={() => {
+                  window.location.href = "/api/auth/twitch";
+                }}
+              >
+                <SiTwitch className="mr-2 h-5 w-5" />
+                Login with Twitch
+              </Button>
+            </div>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
 
+  return (
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          Warzone Twitch Bot
+        </h1>
+        <div className="flex items-center gap-4">
+          <span className="text-muted-foreground">
+            Connected as {user?.login}
+          </span>
+          <Button variant="outline" onClick={() => logout()}>
+            Logout
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-8">
         {config && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Message Templates</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MessageTemplate 
-                config={config}
-                onUpdate={saveConfig}
-                isPending={isPending}
-              />
-            </CardContent>
-          </Card>
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Connection Settings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ConfigForm
+                  config={config}
+                  onSubmit={saveConfig}
+                  isPending={isPending}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Message Templates</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MessageTemplate
+                  config={config}
+                  onUpdate={saveConfig}
+                  isPending={isPending}
+                />
+              </CardContent>
+            </Card>
+          </>
         )}
 
         <Alert>

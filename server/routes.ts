@@ -2,26 +2,41 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertConfigSchema } from "@shared/schema";
-import { z } from "zod";
+import passport from "passport";
+import { isAuthenticated } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/config", async (req, res) => {
+  // Auth routes
+  app.get("/api/auth/twitch", passport.authenticate("twitch"));
+
+  app.get(
+    "/api/auth/twitch/callback",
+    passport.authenticate("twitch", {
+      successRedirect: "/",
+      failureRedirect: "/?error=auth_failed",
+    })
+  );
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout(() => {
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/status", (req, res) => {
+    res.json({
+      authenticated: req.isAuthenticated(),
+      user: req.user
+    });
+  });
+
+  // Protected config routes
+  app.get("/api/config", isAuthenticated, async (req, res) => {
     const config = await storage.getConfig();
     res.json(config || null);
   });
 
-  app.post("/api/config", async (req, res) => {
-    const result = insertConfigSchema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ message: "Invalid configuration" });
-      return;
-    }
-
-    const config = await storage.saveConfig(result.data);
-    res.json(config);
-  });
-
-  app.patch("/api/config", async (req, res) => {
+  app.patch("/api/config", isAuthenticated, async (req, res) => {
     const result = insertConfigSchema.partial().safeParse(req.body);
     if (!result.success) {
       res.status(400).json({ message: "Invalid configuration update" });
