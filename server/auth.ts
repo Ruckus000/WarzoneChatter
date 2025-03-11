@@ -1,5 +1,5 @@
 import passport from "passport";
-import { Strategy as TwitchStrategy } from "passport-twitch.js";
+import { Strategy as TwitchStrategy } from "passport-twitch";
 import { storage } from "./storage";
 import type { Config } from "@shared/schema";
 
@@ -24,8 +24,8 @@ passport.use(
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
       callbackURL: "/api/auth/twitch/callback",
       scope: ["chat:read", "chat:edit"],
-    },
-    async (accessToken, refreshToken, profile, done) => {
+    } as any,
+    async (_accessToken, _refreshToken, profile: any, done: any) => {
       try {
         // Get or create config with Twitch credentials
         let config = await storage.getConfig();
@@ -34,7 +34,7 @@ passport.use(
           config = await storage.saveConfig({
             twitchChannel: profile.login,
             twitchUsername: profile.login,
-            twitchToken: `oauth:${accessToken}`,
+            twitchToken: `oauth:${_accessToken}`,
             enabled: true,
             killMessageTemplate: "(kills) enemies eliminated",
             deathMessageTemplate: "Defeated in battle",
@@ -44,14 +44,14 @@ passport.use(
           config = await storage.updateConfig({
             twitchChannel: profile.login,
             twitchUsername: profile.login,
-            twitchToken: `oauth:${accessToken}`
+            twitchToken: `oauth:${_accessToken}`
           });
         }
 
         return done(null, { 
           id: profile.id,
           login: profile.login,
-          accessToken
+          accessToken: _accessToken
         });
       } catch (error) {
         return done(error as Error);
