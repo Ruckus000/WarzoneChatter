@@ -15,21 +15,17 @@ passport.deserializeUser((user: any, done) => {
   done(null, user);
 });
 
-// Configure Twitch Strategy
 passport.use(
   new TwitchStrategy(
     {
       clientID: process.env.TWITCH_CLIENT_ID,
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
-      callbackURL: process.env.NODE_ENV === "production"
-        ? "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback"
-        : "http://localhost:5000/api/auth/twitch/callback",
+      callbackURL: "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback",
       scope: ["chat:read", "chat:edit"],
-      passReqToCallback: true,
     },
-    async (req: any, accessToken: string, refreshToken: string, profile: any, done: any) => {
+    async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
-        console.log("Twitch auth callback received:", { profile: profile.login });
+        console.log("Twitch auth callback received for user:", profile.login);
 
         const user = {
           id: profile.id,

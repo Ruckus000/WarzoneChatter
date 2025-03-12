@@ -11,12 +11,22 @@ export async function registerRoutes(app: Express) {
     console.log("Starting Twitch auth...");
     passport.authenticate("twitch", {
       successRedirect: "/",
-      failureRedirect: "/?error=auth_failed"
+      failureRedirect: "/?error=auth_failed",
+      failureMessage: true
     })(req, res, next);
   });
 
   app.get("/api/auth/twitch/callback", (req, res, next) => {
-    console.log("Received callback from Twitch");
+    console.log("Received callback from Twitch", {
+      query: req.query,
+      error: req.query.error,
+      errorDescription: req.query.error_description
+    });
+
+    if (req.query.error === 'redirect_mismatch') {
+      console.error("Redirect URL mismatch error. Please verify Twitch app settings.");
+      return res.redirect("/?error=redirect_mismatch");
+    }
 
     passport.authenticate("twitch", (err: any, user: any) => {
       if (err) {
@@ -36,18 +46,13 @@ export async function registerRoutes(app: Express) {
         }
 
         console.log("User successfully authenticated:", user.login);
-        // Always redirect to the root path after successful authentication
         return res.redirect("/");
       });
     })(req, res, next);
   });
 
   app.post("/api/auth/logout", (req, res) => {
-    const wasAuthenticated = req.isAuthenticated();
     req.logout(() => {
-      if (wasAuthenticated) {
-        console.log("User logged out successfully");
-      }
       res.json({ success: true });
     });
   });
