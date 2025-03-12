@@ -24,6 +24,7 @@ passport.use(
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
       callbackURL: "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback",
       scope: ["chat:read", "chat:edit"],
+      state: true
     },
     async (_accessToken, _refreshToken, profile: any, done: any) => {
       try {

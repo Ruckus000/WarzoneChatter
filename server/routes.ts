@@ -7,7 +7,13 @@ import { isAuthenticated } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
-  app.get("/api/auth/twitch", passport.authenticate("twitch"));
+  app.get("/api/auth/twitch", (req, res, next) => {
+    passport.authenticate("twitch", {
+      state: Math.random().toString(36).substring(7),
+      failureRedirect: "/?error=auth_failed",
+      successRedirect: "/",
+    })(req, res, next);
+  });
 
   app.get(
     "/api/auth/twitch/callback",

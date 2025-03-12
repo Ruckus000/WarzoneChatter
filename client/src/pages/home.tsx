@@ -10,6 +10,7 @@ import type { Config } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const { toast } = useToast();
@@ -41,8 +42,16 @@ export default function Home() {
     },
   });
 
+  const handleTwitchLogin = () => {
+    window.location.href = "/api/auth/twitch";
+  };
+
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
@@ -62,9 +71,7 @@ export default function Home() {
               <Button
                 size="lg"
                 className="bg-[#9146FF] hover:bg-[#7313FF]"
-                onClick={() => {
-                  window.location.href = "/api/auth/twitch";
-                }}
+                onClick={handleTwitchLogin}
               >
                 <SiTwitch className="mr-2 h-5 w-5" />
                 Login with Twitch
