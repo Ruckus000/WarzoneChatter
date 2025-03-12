@@ -63,44 +63,6 @@ export default function Home() {
     return <AuthPopup onClose={() => setShowAuthPopup(false)} />;
   }
 
-  // Show login page for unauthenticated users
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto py-8">
-        <div className="max-w-lg mx-auto">
-          <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent text-center">
-            Warzone Twitch Bot
-          </h1>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <h2 className="text-2xl font-semibold mb-4">Connect Your Twitch Account</h2>
-                <p className="text-muted-foreground mb-6">
-                  Login with your Twitch account to start using the Warzone bot
-                </p>
-                {error && (
-                  <Alert variant="destructive" className="mb-6">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-                <Button
-                  size="lg"
-                  className="bg-[#9146FF] hover:bg-[#7313FF] w-full"
-                  onClick={() => setShowAuthPopup(true)}
-                >
-                  <SiTwitch className="mr-2 h-5 w-5" />
-                  Login with Twitch
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Show main interface for authenticated users
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
@@ -108,52 +70,82 @@ export default function Home() {
           Warzone Twitch Bot
         </h1>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
-            <SiTwitch className="h-5 w-5 text-[#9146FF]" />
-            <span>{user?.login}</span>
-          </div>
-          <Button variant="outline" onClick={() => logout()}>
-            Logout
-          </Button>
+          {isAuthenticated ? (
+            <>
+              <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
+                <SiTwitch className="h-5 w-5 text-[#9146FF]" />
+                <span>{user?.login}</span>
+              </div>
+              <Button variant="outline" onClick={() => logout()}>
+                Logout
+              </Button>
+            </>
+          ) : (
+            <Button
+              className="bg-[#9146FF] hover:bg-[#7313FF]"
+              onClick={() => setShowAuthPopup(true)}
+            >
+              <SiTwitch className="mr-2 h-5 w-5" />
+              Connect Twitch Account
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="grid gap-8 md:grid-cols-2">
-        {config && (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Connection Settings
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Connection Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isAuthenticated ? (
+              config && (
                 <ConfigForm
                   config={config}
                   onSubmit={saveConfig}
                   isPending={isSaving}
                 />
-              </CardContent>
-            </Card>
+              )
+            ) : (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Connect your Twitch account to configure bot settings
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Message Templates
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Message Templates
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isAuthenticated ? (
+              config && (
                 <MessageTemplate
                   config={config}
                   onUpdate={saveConfig}
                   isPending={isSaving}
                 />
-              </CardContent>
-            </Card>
-          </>
-        )}
+              )
+            ) : (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Connect your Twitch account to customize message templates
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="md:col-span-2">
           <CardHeader>
