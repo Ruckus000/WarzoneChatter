@@ -17,20 +17,13 @@ export async function registerRoutes(app: Express) {
       hasSession: !!req.session
     });
 
-    // Set a longer timeout for the auth request
-    req.socket.setTimeout(120000);
-    res.setTimeout(120000);
-
     passport.authenticate("twitch", {
-      scope: ["chat:read", "chat:edit"]
+      scope: ["chat:read", "chat:edit"],
+      state: true
     })(req, res, next);
   });
 
   app.get("/api/auth/twitch/callback", (req, res, next) => {
-    // Set a longer timeout for the callback
-    req.socket.setTimeout(120000);
-    res.setTimeout(120000);
-
     logRouteEvent("Auth callback received", { 
       query: req.query,
       sessionId: req.sessionID,
@@ -38,34 +31,16 @@ export async function registerRoutes(app: Express) {
       error: req.query.error
     });
 
+    // Handle redirect mismatch error specifically
     if (req.query.error === 'redirect_mismatch') {
       logRouteEvent("Redirect mismatch error detected");
       return res.redirect("/?error=redirect_mismatch");
     }
 
-    passport.authenticate("twitch", (err: any, user: any) => {
-      if (err) {
-        logRouteEvent("Auth callback error", { error: err.message });
-        return res.redirect("/?error=auth_failed");
-      }
-
-      if (!user) {
-        logRouteEvent("No user returned from auth");
-        return res.redirect("/?error=auth_failed");
-      }
-
-      req.logIn(user, (loginErr) => {
-        if (loginErr) {
-          logRouteEvent("Login error", { error: loginErr.message });
-          return res.redirect("/?error=auth_failed");
-        }
-
-        logRouteEvent("Auth successful", { 
-          user: user.login,
-          sessionId: req.sessionID
-        });
-        res.redirect("/");
-      });
+    passport.authenticate("twitch", {
+      failureRedirect: "/?error=auth_failed",
+      successRedirect: "/",
+      failureMessage: true
     })(req, res, next);
   });
 
