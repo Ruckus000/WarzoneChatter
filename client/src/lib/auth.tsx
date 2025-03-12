@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "./queryClient";
 
@@ -12,6 +12,7 @@ interface AuthContextType {
   user: User | null;
   logout: () => void;
   isLoading: boolean;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,13 +20,31 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   logout: () => {},
   isLoading: true,
+  error: null
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [error, setError] = useState<string | null>(null);
+
+  // Check for error parameter in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get('error');
+    if (authError) {
+      setError(authError === 'redirect_mismatch' 
+        ? 'Authentication configuration error. Please try again.'
+        : 'Authentication failed. Please try again.');
+
+      // Clear error from URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   const { data, isLoading } = useQuery<{ authenticated: boolean; user: User | null }>({
     queryKey: ["/api/auth/status"],
     refetchOnWindowFocus: false,
     retry: false,
+    refetchInterval: (data) => data?.authenticated ? false : 2000 // Poll while not authenticated
   });
 
   const { mutate: logout } = useMutation({
@@ -36,6 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Clear error when authentication succeeds
+  useEffect(() => {
+    if (data?.authenticated) {
+      setError(null);
+    }
+  }, [data?.authenticated]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -43,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: data?.user || null,
         logout,
         isLoading,
+        error
       }}
     >
       {children}

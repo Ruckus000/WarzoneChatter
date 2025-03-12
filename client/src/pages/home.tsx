@@ -11,12 +11,34 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Home() {
   const { toast } = useToast();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isLoading, error } = useAuth();
 
-  const { data: config, isLoading } = useQuery<Config | null>({
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Authentication Error",
+        description: error,
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Authenticating...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { data: config,  } = useQuery<Config | null>({
     queryKey: ["/api/config"],
     enabled: isAuthenticated,
   });
@@ -45,14 +67,6 @@ export default function Home() {
   const handleTwitchLogin = () => {
     window.location.href = "/api/auth/twitch";
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
 
   if (!isAuthenticated) {
     return (

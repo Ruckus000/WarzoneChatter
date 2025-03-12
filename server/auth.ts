@@ -9,34 +9,36 @@ if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
 
 // Add debug logging
 function logAuthEvent(event: string, data?: any) {
-  console.log(`[Auth ${new Date().toISOString()}] ${event}`, data ? JSON.stringify(data, null, 2) : '');
+  console.log(`[Auth Debug] ${event}`, data);
 }
 
+// Simple user serialization
 passport.serializeUser((user: any, done) => {
-  logAuthEvent('Serializing user', { id: user.id, login: user.login });
-  done(null, user);
+  logAuthEvent("Serializing user", { id: user.id });
+  done(null, { id: user.id, login: user.login, accessToken: user.accessToken });
 });
 
-passport.deserializeUser((user: any, done) => {
-  logAuthEvent('Deserializing user', { id: user.id, login: user.login });
-  done(null, user);
+passport.deserializeUser((serialized: any, done) => {
+  logAuthEvent("Deserializing user", { id: serialized.id });
+  done(null, serialized);
 });
+
+const CALLBACK_URL = "https://replit.com/@jphilistin12/WarzoneChatter/api/auth/twitch/callback";
 
 passport.use(
   new TwitchStrategy(
     {
       clientID: process.env.TWITCH_CLIENT_ID,
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
-      callbackURL: "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback",
+      callbackURL: CALLBACK_URL,
       scope: ["chat:read", "chat:edit"],
+      state: true // Enable CSRF protection
     },
     async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
-        logAuthEvent('Twitch strategy callback', {
+        logAuthEvent("Processing Twitch callback", {
           profileId: profile.id,
-          login: profile.login,
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken
+          login: profile.login
         });
 
         const user = {
@@ -45,11 +47,9 @@ passport.use(
           accessToken
         };
 
-        // Store initial config
         try {
           const config = await storage.getConfig();
           if (!config) {
-            logAuthEvent('Creating initial config', { login: profile.login });
             await storage.saveConfig({
               twitchChannel: profile.login,
               twitchUsername: profile.login,
@@ -60,20 +60,20 @@ passport.use(
               matchEndMessageTemplate: "Match complete with (kills) kills"
             });
           } else {
-            logAuthEvent('Updating existing config', { login: profile.login });
             await storage.updateConfig({
               twitchChannel: profile.login,
               twitchUsername: profile.login,
               twitchToken: `oauth:${accessToken}`
             });
           }
-        } catch (configError) {
-          logAuthEvent('Config error', { error: configError.message });
+        } catch (error) {
+          logAuthEvent("Config error", { error });
         }
 
+        logAuthEvent("Authentication successful", { userId: user.id });
         return done(null, user);
       } catch (error) {
-        logAuthEvent('Auth error', { error: error.message, stack: error.stack });
+        logAuthEvent("Authentication failed", { error });
         return done(error);
       }
     }
@@ -81,12 +81,6 @@ passport.use(
 );
 
 export function isAuthenticated(req: any, res: any, next: any) {
-  logAuthEvent('Checking authentication', { 
-    isAuthenticated: req.isAuthenticated(),
-    hasSession: !!req.session,
-    hasUser: !!req.user
-  });
-
   if (req.isAuthenticated()) {
     return next();
   }

@@ -6,43 +6,38 @@ import passport from "passport";
 import { isAuthenticated } from "./auth";
 
 function logRouteEvent(event: string, data?: any) {
-  console.log(`[Routes ${new Date().toISOString()}] ${event}`, data ? JSON.stringify(data, null, 2) : '');
+  console.log(`[Routes Debug] ${event}`, data);
 }
 
 export async function registerRoutes(app: Express) {
   // Auth routes
   app.get("/api/auth/twitch", (req, res, next) => {
     logRouteEvent("Starting Twitch auth", { 
-      session: !!req.session,
-      sessionID: req.sessionID
+      sessionId: req.sessionID,
+      hasSession: !!req.session
     });
 
     passport.authenticate("twitch", {
-      successRedirect: "/",
-      failureRedirect: "/?error=auth_failed",
-      failureMessage: true
+      scope: ["chat:read", "chat:edit"]
     })(req, res, next);
   });
 
   app.get("/api/auth/twitch/callback", (req, res, next) => {
-    logRouteEvent("Received Twitch callback", {
+    logRouteEvent("Auth callback received", { 
       query: req.query,
-      error: req.query.error,
-      errorDescription: req.query.error_description,
-      session: !!req.session,
-      sessionID: req.sessionID
+      sessionId: req.sessionID,
+      hasSession: !!req.session,
+      error: req.query.error
     });
 
     if (req.query.error === 'redirect_mismatch') {
-      logRouteEvent("Redirect mismatch error", { 
-        registeredCallback: "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback"
-      });
+      logRouteEvent("Redirect mismatch error detected");
       return res.redirect("/?error=redirect_mismatch");
     }
 
     passport.authenticate("twitch", (err: any, user: any) => {
       if (err) {
-        logRouteEvent("Authentication error", { error: err.message, stack: err.stack });
+        logRouteEvent("Auth callback error", { error: err.message });
         return res.redirect("/?error=auth_failed");
       }
 
@@ -53,49 +48,48 @@ export async function registerRoutes(app: Express) {
 
       req.logIn(user, (loginErr) => {
         if (loginErr) {
-          logRouteEvent("Login error", { error: loginErr.message, stack: loginErr.stack });
+          logRouteEvent("Login error", { error: loginErr.message });
           return res.redirect("/?error=auth_failed");
         }
 
-        logRouteEvent("User successfully authenticated", { 
+        logRouteEvent("Auth successful", { 
           user: user.login,
-          session: !!req.session,
-          sessionID: req.sessionID
+          sessionId: req.sessionID
         });
-
-        return res.redirect("/");
+        res.redirect("/");
       });
     })(req, res, next);
   });
 
+  app.get("/api/auth/status", (req, res) => {
+    const authenticated = req.isAuthenticated();
+    logRouteEvent("Auth status check", { 
+      authenticated,
+      sessionId: req.sessionID,
+      hasSession: !!req.session,
+      hasUser: !!req.user
+    });
+
+    res.json({
+      authenticated,
+      user: authenticated ? req.user : null
+    });
+  });
+
   app.post("/api/auth/logout", (req, res) => {
-    logRouteEvent("Logout initiated", { sessionID: req.sessionID });
     req.logout(() => {
-      logRouteEvent("Logout successful", { sessionID: req.sessionID });
+      logRouteEvent("Logout completed");
       res.json({ success: true });
     });
   });
 
-  app.get("/api/auth/status", (req, res) => {
-    const status = {
-      authenticated: req.isAuthenticated(),
-      user: req.user,
-      session: !!req.session,
-      sessionID: req.sessionID
-    };
-
-    logRouteEvent("Auth status check", status);
-    res.json({ authenticated: status.authenticated, user: status.user });
-  });
-
-  // Protected config routes
+  // Protected routes
   app.get("/api/config", isAuthenticated, async (req, res) => {
     try {
       const config = await storage.getConfig();
-      logRouteEvent("Config fetched", { hasConfig: !!config });
       res.json(config || null);
     } catch (error) {
-      logRouteEvent("Config fetch error", { error: error.message });
+      logRouteEvent("Config fetch error", { error });
       res.status(500).json({ message: "Failed to fetch config" });
     }
   });
@@ -104,15 +98,13 @@ export async function registerRoutes(app: Express) {
     try {
       const result = insertConfigSchema.partial().safeParse(req.body);
       if (!result.success) {
-        logRouteEvent("Invalid config update", { errors: result.error.issues });
-        return res.status(400).json({ message: "Invalid configuration update" });
+        return res.status(400).json({ message: "Invalid configuration" });
       }
 
       const config = await storage.updateConfig(result.data);
-      logRouteEvent("Config updated", config);
       res.json(config);
     } catch (error) {
-      logRouteEvent("Config update error", { error: error.message });
+      logRouteEvent("Config update error", { error });
       res.status(500).json({ message: "Failed to update config" });
     }
   });

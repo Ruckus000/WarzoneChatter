@@ -8,10 +8,6 @@ import "./auth";
 
 const app = express();
 
-function logServerEvent(event: string, data?: any) {
-  console.log(`[Server ${new Date().toISOString()}] ${event}`, data ? JSON.stringify(data, null, 2) : '');
-}
-
 // Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -29,18 +25,22 @@ const sessionMiddleware = session({
   cookie: {
     secure: false, // Must be false as we're not using HTTPS in development
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    path: '/',
+    sameSite: 'lax'
   }
 });
 
-// Log session creation
+// Add debug logging
 app.use((req, res, next) => {
   const originalEnd = res.end;
   res.end = function(...args) {
-    logServerEvent('Response finished', {
+    console.log(`[Session Debug] Request completed:`, {
       method: req.method,
       path: req.path,
       sessionID: req.sessionID,
+      hasSession: !!req.session,
+      isAuthenticated: req.isAuthenticated?.(),
       statusCode: res.statusCode
     });
     // @ts-ignore
@@ -51,10 +51,9 @@ app.use((req, res, next) => {
 
 app.use(sessionMiddleware);
 
-// Initialize Passport
+// Initialize Passport after session middleware
 app.use(passport.initialize());
 app.use(passport.session());
-
 
 // Start the server
 (async () => {
@@ -63,9 +62,10 @@ app.use(passport.session());
 
     // Error handling
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      logServerEvent("Server Error", { 
-        error: err.message,
-        stack: err.stack
+      console.error("[Server Error]", {
+        message: err.message,
+        stack: err.stack,
+        status: err.status || 500
       });
       res.status(500).json({ message: "Internal Server Error" });
     });
@@ -77,13 +77,10 @@ app.use(passport.session());
     }
 
     server.listen(5000, "0.0.0.0", () => {
-      logServerEvent("Server started", { port: 5000 });
+      console.log("[Server] Started on port 5000");
     });
   } catch (error) {
-    logServerEvent("Failed to start server", { 
-      error: error.message,
-      stack: error.stack 
-    });
+    console.error("[Server] Failed to start:", error);
     process.exit(1);
   }
 })();
