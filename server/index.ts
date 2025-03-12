@@ -12,10 +12,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Generate a strong session secret
+const generateSessionSecret = () => {
+  const randomPart = Math.random().toString(36).substring(2) + 
+                    Math.random().toString(36).substring(2);
+  return `warzone-twitch-bot-${randomPart}`;
+};
+
 // Session configuration
 const MemoryStore = memorystore(session);
 const sessionMiddleware = session({
-  secret: process.env.SESSION_SECRET || "warzone-twitch-bot-secret-" + Math.random().toString(36).substring(2),
+  secret: process.env.SESSION_SECRET || generateSessionSecret(),
   name: "warzone.sid",
   resave: false,
   saveUninitialized: false,
@@ -23,7 +30,7 @@ const sessionMiddleware = session({
     checkPeriod: 86400000 // prune expired entries every 24h
   }),
   cookie: {
-    secure: process.env.NODE_ENV === "production", // Set secure based on environment
+    secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     path: '/',
@@ -32,6 +39,43 @@ const sessionMiddleware = session({
 });
 
 // Add debug logging for session tracking
+app.use((req, res, next) => {
+  console.log(`[Session Debug] Request started:`, {
+    method: req.method,
+    path: req.path,
+    cookies: req.headers.cookie,
+    origin: req.headers.origin
+  });
+  next();
+});
+
+// CORS configuration
+app.use((req, res, next) => {
+  const allowedOrigins = process.env.NODE_ENV === "production" 
+    ? ["https://warzonechatter.jphilistin12.repl.co"]
+    : ["http://localhost:5000"];
+
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+app.use(sessionMiddleware);
+
+// Initialize Passport after session middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Final response logging
 app.use((req, res, next) => {
   const originalEnd = res.end;
   res.end = function(...args) {
@@ -49,29 +93,6 @@ app.use((req, res, next) => {
   };
   next();
 });
-
-// CORS configuration - Important for cookie handling
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
-    }
-  }
-  next();
-});
-
-app.use(sessionMiddleware);
-
-// Initialize Passport after session middleware
-app.use(passport.initialize());
-app.use(passport.session());
 
 // Start the server
 (async () => {

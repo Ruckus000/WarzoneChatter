@@ -23,11 +23,17 @@ passport.deserializeUser((serialized: any, done) => {
   done(null, serialized);
 });
 
-const CALLBACK_URL = process.env.NODE_ENV === "production"
-  ? "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback"
-  : "http://localhost:5000/api/auth/twitch/callback";
+// Get the base URL for the application
+const BASE_URL = process.env.NODE_ENV === "production"
+  ? "https://warzonechatter.jphilistin12.repl.co"
+  : "http://localhost:5000";
 
-logAuthEvent("Initializing Twitch Strategy", { callbackUrl: CALLBACK_URL });
+const CALLBACK_URL = `${BASE_URL}/api/auth/twitch/callback`;
+
+logAuthEvent("Initializing Twitch Strategy", { 
+  callbackUrl: CALLBACK_URL,
+  clientId: process.env.TWITCH_CLIENT_ID?.substring(0, 8) + "..."
+});
 
 passport.use(
   new TwitchStrategy(
@@ -42,7 +48,8 @@ passport.use(
       try {
         logAuthEvent("Processing Twitch callback", {
           profileId: profile.id,
-          login: profile.login
+          login: profile.login,
+          hasAccessToken: !!accessToken
         });
 
         const user = {
