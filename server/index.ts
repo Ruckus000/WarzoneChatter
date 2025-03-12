@@ -23,7 +23,7 @@ const sessionMiddleware = session({
     checkPeriod: 86400000 // prune expired entries every 24h
   }),
   cookie: {
-    secure: false, // Must be false as we're not using HTTPS in development
+    secure: process.env.NODE_ENV === "production", // Set secure based on environment
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     path: '/',
@@ -56,6 +56,21 @@ app.use((req, res, next) => {
     console.log('[Server] Request timeout:', req.url);
     res.status(408).send('Request timeout');
   });
+  next();
+});
+
+// CORS configuration - Important for cookie handling
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
   next();
 });
 
