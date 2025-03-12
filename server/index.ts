@@ -15,13 +15,13 @@ const MemoryStore = memorystore(session);
 app.use(
   session({
     secret: "warzone-twitch-bot-secret",
-    resave: false,
+    resave: true,
     saveUninitialized: false,
     store: new MemoryStore({
       checkPeriod: 86400000 // prune expired entries every 24h
     }),
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Set to false for development
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
   })
@@ -65,11 +65,10 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("Server Error:", err);
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
-    throw err;
   });
 
   if (app.get("env") === "development") {

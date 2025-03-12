@@ -11,16 +11,18 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   logout: () => void;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
   logout: () => {},
+  isLoading: true,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { data, refetch } = useQuery({
     queryKey: ["/api/auth/status"],
@@ -28,6 +30,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetchOnMount: false,
     refetchOnReconnect: false,
     retry: false,
+    onSettled: () => {
+      setIsLoading(false);
+    }
   });
 
   const { mutate: logout } = useMutation({
@@ -38,21 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    // Only check auth status once on initial mount
-    if (isInitialLoad) {
-      setIsInitialLoad(false);
-      refetch();
-    }
-  }, [isInitialLoad, refetch]);
+    refetch();
+  }, [refetch]);
+
+  const authData = {
+    isAuthenticated: Boolean(data?.authenticated),
+    user: data?.user || null,
+    logout,
+    isLoading
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated: data?.authenticated ?? false,
-        user: data?.user ?? null,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={authData}>
       {children}
     </AuthContext.Provider>
   );

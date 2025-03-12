@@ -13,11 +13,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   app.get("/api/auth/twitch/callback",
-    passport.authenticate("twitch", {
-      failureRedirect: "/?error=auth_failed",
-      successRedirect: "/",
-      failureMessage: true,
-    })
+    (req, res, next) => {
+      passport.authenticate("twitch", {
+        failureRedirect: "/?error=auth_failed",
+        failureMessage: true,
+      })(req, res, (err) => {
+        if (err) {
+          console.error("Auth Error:", err);
+          return res.redirect("/?error=auth_failed");
+        }
+        res.redirect("/");
+      });
+    }
   );
 
   app.post("/api/auth/logout", (req, res) => {
@@ -27,6 +34,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/auth/status", (req, res) => {
+    console.log("Auth Status:", {
+      isAuthenticated: req.isAuthenticated(),
+      session: req.session,
+      user: req.user
+    });
+
     res.json({
       authenticated: req.isAuthenticated(),
       user: req.user
