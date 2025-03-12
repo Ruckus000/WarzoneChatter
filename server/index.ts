@@ -8,6 +8,10 @@ import "./auth";
 
 const app = express();
 
+function logServerEvent(event: string, data?: any) {
+  console.log(`[Server ${new Date().toISOString()}] ${event}`, data ? JSON.stringify(data, null, 2) : '');
+}
+
 // Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -29,23 +33,28 @@ const sessionMiddleware = session({
   }
 });
 
+// Log session creation
+app.use((req, res, next) => {
+  const originalEnd = res.end;
+  res.end = function(...args) {
+    logServerEvent('Response finished', {
+      method: req.method,
+      path: req.path,
+      sessionID: req.sessionID,
+      statusCode: res.statusCode
+    });
+    // @ts-ignore
+    originalEnd.apply(res, args);
+  };
+  next();
+});
+
 app.use(sessionMiddleware);
 
 // Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Request logging middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (req.path.startsWith("/api")) {
-      log(`${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
-    }
-  });
-  next();
-});
 
 // Start the server
 (async () => {
@@ -54,7 +63,10 @@ app.use((req, res, next) => {
 
     // Error handling
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      console.error("Server Error:", err);
+      logServerEvent("Server Error", { 
+        error: err.message,
+        stack: err.stack
+      });
       res.status(500).json({ message: "Internal Server Error" });
     });
 
@@ -65,10 +77,13 @@ app.use((req, res, next) => {
     }
 
     server.listen(5000, "0.0.0.0", () => {
-      log("Server running on port 5000");
+      logServerEvent("Server started", { port: 5000 });
     });
   } catch (error) {
-    console.error("Failed to start server:", error);
+    logServerEvent("Failed to start server", { 
+      error: error.message,
+      stack: error.stack 
+    });
     process.exit(1);
   }
 })();

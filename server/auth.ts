@@ -7,11 +7,18 @@ if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
   throw new Error("Missing Twitch OAuth credentials");
 }
 
+// Add debug logging
+function logAuthEvent(event: string, data?: any) {
+  console.log(`[Auth ${new Date().toISOString()}] ${event}`, data ? JSON.stringify(data, null, 2) : '');
+}
+
 passport.serializeUser((user: any, done) => {
+  logAuthEvent('Serializing user', { id: user.id, login: user.login });
   done(null, user);
 });
 
 passport.deserializeUser((user: any, done) => {
+  logAuthEvent('Deserializing user', { id: user.id, login: user.login });
   done(null, user);
 });
 
@@ -25,7 +32,12 @@ passport.use(
     },
     async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
-        console.log("Twitch auth callback received for user:", profile.login);
+        logAuthEvent('Twitch strategy callback', {
+          profileId: profile.id,
+          login: profile.login,
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken
+        });
 
         const user = {
           id: profile.id,
@@ -34,28 +46,34 @@ passport.use(
         };
 
         // Store initial config
-        const config = await storage.getConfig();
-        if (!config) {
-          await storage.saveConfig({
-            twitchChannel: profile.login,
-            twitchUsername: profile.login,
-            twitchToken: `oauth:${accessToken}`,
-            enabled: true,
-            killMessageTemplate: "(kills) enemies eliminated",
-            deathMessageTemplate: "Defeated in battle",
-            matchEndMessageTemplate: "Match complete with (kills) kills"
-          });
-        } else {
-          await storage.updateConfig({
-            twitchChannel: profile.login,
-            twitchUsername: profile.login,
-            twitchToken: `oauth:${accessToken}`
-          });
+        try {
+          const config = await storage.getConfig();
+          if (!config) {
+            logAuthEvent('Creating initial config', { login: profile.login });
+            await storage.saveConfig({
+              twitchChannel: profile.login,
+              twitchUsername: profile.login,
+              twitchToken: `oauth:${accessToken}`,
+              enabled: true,
+              killMessageTemplate: "(kills) enemies eliminated",
+              deathMessageTemplate: "Defeated in battle",
+              matchEndMessageTemplate: "Match complete with (kills) kills"
+            });
+          } else {
+            logAuthEvent('Updating existing config', { login: profile.login });
+            await storage.updateConfig({
+              twitchChannel: profile.login,
+              twitchUsername: profile.login,
+              twitchToken: `oauth:${accessToken}`
+            });
+          }
+        } catch (configError) {
+          logAuthEvent('Config error', { error: configError.message });
         }
 
         return done(null, user);
       } catch (error) {
-        console.error("Auth error:", error);
+        logAuthEvent('Auth error', { error: error.message, stack: error.stack });
         return done(error);
       }
     }
@@ -63,6 +81,12 @@ passport.use(
 );
 
 export function isAuthenticated(req: any, res: any, next: any) {
+  logAuthEvent('Checking authentication', { 
+    isAuthenticated: req.isAuthenticated(),
+    hasSession: !!req.session,
+    hasUser: !!req.user
+  });
+
   if (req.isAuthenticated()) {
     return next();
   }
