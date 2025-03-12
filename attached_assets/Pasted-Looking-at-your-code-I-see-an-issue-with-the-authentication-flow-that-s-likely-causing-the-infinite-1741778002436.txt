@@ -1,0 +1,50 @@
+Looking at your code, I see an issue with the authentication flow that's likely causing the infinite loading state after Twitch authentication. Let me analyze what's happening.
+
+The problem appears to be in how the authentication state is being tracked in your client-side application. When a user authenticates with Twitch, the server creates a session, but there seems to be an issue with how the client detects this authenticated state.
+
+Let's fix this with a React component that will solve your infinite loading issue:
+
+Here's what's causing the infinite loading issue:
+
+1. **Session Detection Problem**: After Twitch authentication, the React app loads but fails to detect the authenticated session, leaving your app in a loading state.
+
+2. **Query Client Configuration**: Your query client configuration is set with `staleTime: Infinity`, which means it won't refresh data once fetched, making it hard to detect new authentication state.
+
+To fix this issue:
+
+1. Replace your `client/src/lib/auth.tsx` file with the code from the artifact I created.
+
+2. The key improvements in this fixed version:
+   - Added a special check to detect Twitch redirects and force a refetch
+   - Changed the stale time to allow refreshing auth state
+   - Added better retry logic
+   - Added timeout to ensure the server has time to set cookies
+
+3. In your `client/src/lib/queryClient.ts` file, make this small adjustment:
+
+```typescript
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      queryFn: getQueryFn({ on401: "throw" }),
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+      staleTime: 60000, // Change from Infinity to 60 seconds
+      retry: 1,         // Allow one retry
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
+```
+
+If the issue persists after these changes, you might also check:
+
+1. **Cookie Settings**: Ensure your session cookie settings in `server/index.ts` are correct. The `secure` flag should match your deployment environment (false for HTTP, true for HTTPS).
+
+2. **CORS Issues**: If you're testing in development, make sure your browser isn't blocking cookies due to CORS issues.
+
+3. **Session Debugging**: The server already has some session debugging - check your console logs to see if the session ID is consistent between requests.
+
+These changes should fix the infinite loading issue by properly detecting when authentication has completed and updating the UI accordingly.

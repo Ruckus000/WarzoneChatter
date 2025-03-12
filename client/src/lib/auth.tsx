@@ -26,10 +26,11 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
-  // Check for error parameter in URL - this should always run
+  // Check for error parameter in URL and Twitch redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get('error');
+
     if (authError) {
       setError(authError === 'redirect_mismatch' 
         ? 'Authentication configuration error. Please try again.'
@@ -38,13 +39,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear error from URL
       window.history.replaceState({}, '', window.location.pathname);
     }
+
+    // Force refetch after Twitch redirect
+    if (window.location.pathname === '/' && params.has('state')) {
+      // Small delay to ensure session is properly set
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/status"] });
+      }, 1000);
+    }
   }, []);
 
   // Auth status query
   const { data: authData, isLoading } = useQuery({
     queryKey: ["/api/auth/status"],
     refetchOnWindowFocus: false,
-    retry: false
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Logout mutation
