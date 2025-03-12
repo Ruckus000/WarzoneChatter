@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SiTwitch } from "react-icons/si";
+import { queryClient } from "@/lib/queryClient";
 
 interface AuthPopupProps {
   onClose: () => void;
@@ -11,9 +12,12 @@ interface AuthPopupProps {
 export default function AuthPopup({ onClose }: AuthPopupProps) {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data === "twitch-auth-success") {
+      if (event.data === 'twitch-auth-success' || event.data === 'twitch-auth-failed') {
         onClose();
-        window.location.reload(); // Refresh to update auth state
+        if (event.data === 'twitch-auth-success') {
+          // Invalidate the auth status query to force a refresh
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/status"] });
+        }
       }
     };
 
@@ -45,7 +49,7 @@ export default function AuthPopup({ onClose }: AuthPopupProps) {
         >
           <X className="h-4 w-4" />
         </Button>
-        
+
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-4">Connect Your Twitch Account</h2>
           <p className="text-muted-foreground mb-6">

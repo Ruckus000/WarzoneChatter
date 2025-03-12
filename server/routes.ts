@@ -34,10 +34,15 @@ export async function registerRoutes(app: Express) {
       if (err || !user) {
         logRouteEvent("Authentication failed", { error: err?.message });
         return res.send(`
-          <script>
-            window.opener.postMessage('twitch-auth-failed', '*');
-            window.close();
-          </script>
+          <!DOCTYPE html>
+          <html>
+            <body>
+              <script>
+                window.opener.postMessage('twitch-auth-failed', '*');
+                window.close();
+              </script>
+            </body>
+          </html>
         `);
       }
 
@@ -45,10 +50,15 @@ export async function registerRoutes(app: Express) {
         if (loginErr) {
           logRouteEvent("Login failed", { error: loginErr.message });
           return res.send(`
-            <script>
-              window.opener.postMessage('twitch-auth-failed', '*');
-              window.close();
-            </script>
+            <!DOCTYPE html>
+            <html>
+              <body>
+                <script>
+                  window.opener.postMessage('twitch-auth-failed', '*');
+                  window.close();
+                </script>
+              </body>
+            </html>
           `);
         }
 
@@ -58,10 +68,15 @@ export async function registerRoutes(app: Express) {
         });
 
         res.send(`
-          <script>
-            window.opener.postMessage('twitch-auth-success', '*');
-            window.close();
-          </script>
+          <!DOCTYPE html>
+          <html>
+            <body>
+              <script>
+                window.opener.postMessage('twitch-auth-success', '*');
+                window.close();
+              </script>
+            </body>
+          </html>
         `);
       });
     })(req, res, next);
