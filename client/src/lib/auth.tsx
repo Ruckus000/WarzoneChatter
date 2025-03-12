@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
-  // Check for error parameter in URL
+  // Check for error parameter in URL - this should always run
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get('error');
@@ -40,38 +40,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const { data, isLoading } = useQuery<{ authenticated: boolean; user: User | null }>({
+  // Auth status query
+  const { data: authData, isLoading } = useQuery({
     queryKey: ["/api/auth/status"],
     refetchOnWindowFocus: false,
-    retry: false,
-    refetchInterval: (data) => data?.authenticated ? false : 2000 // Poll while not authenticated
+    retry: false
   });
 
+  // Logout mutation
   const { mutate: logout } = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/auth/logout");
       queryClient.invalidateQueries();
       window.location.href = "/";
-    },
+    }
   });
 
-  // Clear error when authentication succeeds
+  // Clear error on successful auth
   useEffect(() => {
-    if (data?.authenticated) {
+    if (authData?.authenticated) {
       setError(null);
     }
-  }, [data?.authenticated]);
+  }, [authData?.authenticated]);
+
+  const value = {
+    isAuthenticated: Boolean(authData?.authenticated),
+    user: authData?.user || null,
+    logout,
+    isLoading,
+    error
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated: Boolean(data?.authenticated),
-        user: data?.user || null,
-        logout,
-        isLoading,
-        error
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

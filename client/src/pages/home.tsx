@@ -15,8 +15,9 @@ import { useEffect } from "react";
 
 export default function Home() {
   const { toast } = useToast();
-  const { isAuthenticated, user, logout, isLoading, error } = useAuth();
+  const { isAuthenticated, user, logout, isLoading: authLoading, error } = useAuth();
 
+  // Error notification effect
   useEffect(() => {
     if (error) {
       toast({
@@ -27,22 +28,13 @@ export default function Home() {
     }
   }, [error, toast]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Authenticating...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const { data: config,  } = useQuery<Config | null>({
+  // Config query - always define it, but only enable when authenticated
+  const { data: config } = useQuery<Config | null>({
     queryKey: ["/api/config"],
     enabled: isAuthenticated,
   });
 
+  // Save config mutation
   const { mutate: saveConfig, isPending } = useMutation({
     mutationFn: async (config: Partial<Config>) => {
       const res = await apiRequest("PATCH", "/api/config", config);
@@ -68,13 +60,23 @@ export default function Home() {
     window.location.href = "/api/auth/twitch";
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Authenticating...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="container mx-auto py-8">
         <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
           Warzone Twitch Bot
         </h1>
-
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
