@@ -27,6 +27,8 @@ const CALLBACK_URL = process.env.NODE_ENV === "production"
   ? "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback"
   : "http://localhost:5000/api/auth/twitch/callback";
 
+logAuthEvent("Initializing Twitch Strategy", { callbackUrl: CALLBACK_URL });
+
 passport.use(
   new TwitchStrategy(
     {

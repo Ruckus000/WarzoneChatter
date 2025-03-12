@@ -11,24 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
 
 export default function Home() {
   const { toast } = useToast();
   const { isAuthenticated, user, logout, isLoading: authLoading, error } = useAuth();
 
-  // Error notification effect
-  useEffect(() => {
-    if (error) {
-      toast({
-        title: "Authentication Error",
-        description: error,
-        variant: "destructive",
-      });
-    }
-  }, [error, toast]);
-
-  // Config query - always define it, but only enable when authenticated
+  // Config query - only fetch when authenticated
   const { data: config } = useQuery<Config | null>({
     queryKey: ["/api/config"],
     enabled: isAuthenticated,
@@ -56,10 +44,12 @@ export default function Home() {
     },
   });
 
+  // Handle Twitch login
   const handleTwitchLogin = () => {
     window.location.href = "/api/auth/twitch";
   };
 
+  // Show loading state
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -71,6 +61,7 @@ export default function Home() {
     );
   }
 
+  // Show login page for unauthenticated users
   if (!isAuthenticated) {
     return (
       <div className="container mx-auto py-8">
@@ -84,6 +75,12 @@ export default function Home() {
               <p className="text-muted-foreground mb-6">
                 Login with your Twitch account to start using the Warzone bot
               </p>
+              {error && (
+                <Alert variant="destructive" className="mb-6">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
               <Button
                 size="lg"
                 className="bg-[#9146FF] hover:bg-[#7313FF]"
@@ -99,6 +96,7 @@ export default function Home() {
     );
   }
 
+  // Show main interface for authenticated users
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
