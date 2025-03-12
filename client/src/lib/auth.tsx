@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "./queryClient";
+import { apiRequest, queryClient } from "./queryClient";
 
 interface User {
   id: string;
@@ -22,39 +22,29 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isLoading, setIsLoading] = useState(true);
-
-  const { data, refetch } = useQuery({
+  const { data, isLoading } = useQuery<{ authenticated: boolean; user: User | null }>({
     queryKey: ["/api/auth/status"],
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
     retry: false,
-    onSettled: () => {
-      setIsLoading(false);
-    }
   });
 
   const { mutate: logout } = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/auth/logout");
       queryClient.invalidateQueries();
+      window.location.href = "/";
     },
   });
 
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
-
-  const authData = {
-    isAuthenticated: Boolean(data?.authenticated),
-    user: data?.user || null,
-    logout,
-    isLoading
-  };
-
   return (
-    <AuthContext.Provider value={authData}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: Boolean(data?.authenticated),
+        user: data?.user || null,
+        logout,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
