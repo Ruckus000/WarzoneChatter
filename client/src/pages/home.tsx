@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SiTwitch } from "react-icons/si";
 import ConfigForm from "@/components/config-form";
 import MessageTemplate from "@/components/message-template";
+import AuthPopup from "@/components/auth-popup";
 import type { Config } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -15,6 +17,7 @@ import { Loader2 } from "lucide-react";
 export default function Home() {
   const { toast } = useToast();
   const { isAuthenticated, user, logout, isLoading: authLoading, error } = useAuth();
+  const [showAuthPopup, setShowAuthPopup] = useState(false);
 
   // Config query - only fetch when authenticated
   const { data: config } = useQuery<Config | null>({
@@ -44,21 +47,21 @@ export default function Home() {
     },
   });
 
-  // Handle Twitch login
-  const handleTwitchLogin = () => {
-    window.location.href = "/api/auth/twitch";
-  };
-
   // Show loading state
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Authenticating...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
+  }
+
+  // Show auth popup when requested
+  if (showAuthPopup) {
+    return <AuthPopup onClose={() => setShowAuthPopup(false)} />;
   }
 
   // Show login page for unauthenticated users
@@ -84,7 +87,7 @@ export default function Home() {
               <Button
                 size="lg"
                 className="bg-[#9146FF] hover:bg-[#7313FF]"
-                onClick={handleTwitchLogin}
+                onClick={() => setShowAuthPopup(true)}
               >
                 <SiTwitch className="mr-2 h-5 w-5" />
                 Login with Twitch

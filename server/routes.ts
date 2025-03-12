@@ -27,20 +27,43 @@ export async function registerRoutes(app: Express) {
     logRouteEvent("Auth callback received", { 
       query: req.query,
       sessionId: req.sessionID,
-      hasSession: !!req.session,
-      error: req.query.error
+      hasSession: !!req.session
     });
 
-    // Handle redirect mismatch error specifically
-    if (req.query.error === 'redirect_mismatch') {
-      logRouteEvent("Redirect mismatch error detected");
-      return res.redirect("/?error=redirect_mismatch");
-    }
+    passport.authenticate("twitch", (err: any, user: any) => {
+      if (err || !user) {
+        logRouteEvent("Authentication failed", { error: err?.message });
+        return res.send(`
+          <script>
+            window.opener.postMessage('twitch-auth-failed', '*');
+            window.close();
+          </script>
+        `);
+      }
 
-    passport.authenticate("twitch", {
-      failureRedirect: "/?error=auth_failed",
-      successRedirect: "/",
-      failureMessage: true
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          logRouteEvent("Login failed", { error: loginErr.message });
+          return res.send(`
+            <script>
+              window.opener.postMessage('twitch-auth-failed', '*');
+              window.close();
+            </script>
+          `);
+        }
+
+        logRouteEvent("Authentication successful", { 
+          userId: user.id,
+          sessionId: req.sessionID
+        });
+
+        res.send(`
+          <script>
+            window.opener.postMessage('twitch-auth-success', '*');
+            window.close();
+          </script>
+        `);
+      });
     })(req, res, next);
   });
 
