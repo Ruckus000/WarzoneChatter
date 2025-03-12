@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 // Session configuration
 const MemoryStore = memorystore(session);
 const sessionMiddleware = session({
-  secret: "warzone-twitch-bot-secret",
+  secret: process.env.SESSION_SECRET || "warzone-twitch-bot-secret-" + Math.random().toString(36).substring(2),
   name: "warzone.sid",
   resave: false,
   saveUninitialized: false,
@@ -27,11 +27,11 @@ const sessionMiddleware = session({
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     path: '/',
-    sameSite: 'lax'
+    sameSite: process.env.NODE_ENV === "production" ? 'strict' : 'lax'
   }
 });
 
-// Add debug logging
+// Add debug logging for session tracking
 app.use((req, res, next) => {
   const originalEnd = res.end;
   res.end = function(...args) {
@@ -41,21 +41,12 @@ app.use((req, res, next) => {
       sessionID: req.sessionID,
       hasSession: !!req.session,
       isAuthenticated: req.isAuthenticated?.(),
-      statusCode: res.statusCode
+      statusCode: res.statusCode,
+      cookies: req.headers.cookie
     });
     // @ts-ignore
     originalEnd.apply(res, args);
   };
-  next();
-});
-
-// Increase timeout
-app.use((req, res, next) => {
-  req.socket.setTimeout(120000); // 2 minutes
-  res.setTimeout(120000, () => {
-    console.log('[Server] Request timeout:', req.url);
-    res.status(408).send('Request timeout');
-  });
   next();
 });
 
@@ -67,9 +58,11 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  }
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
   }
   next();
 });

@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "./queryClient";
 
+interface AuthResponse {
+  authenticated: boolean;
+  user: User | null;
+}
+
 interface User {
   id: string;
   login: string;
@@ -26,10 +31,11 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
-  // Check for error parameter in URL and Twitch redirect
+  // Check for redirect and errors
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get('error');
+    const state = params.get('state');
 
     if (authError) {
       setError(authError === 'redirect_mismatch' 
@@ -40,17 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({}, '', window.location.pathname);
     }
 
-    // Force refetch after Twitch redirect
-    if (window.location.pathname === '/' && params.has('state')) {
-      // Small delay to ensure session is properly set
+    // Handle successful Twitch redirect
+    if (state) {
+      // Add delay to ensure server has processed the authentication
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/auth/status"] });
-      }, 1000);
+      }, 1500);
     }
   }, []);
 
   // Auth status query
-  const { data: authData, isLoading } = useQuery({
+  const { data: authData, isLoading } = useQuery<AuthResponse>({
     queryKey: ["/api/auth/status"],
     refetchOnWindowFocus: false,
     retry: 2,
