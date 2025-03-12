@@ -8,56 +8,64 @@ if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
 }
 
 // Simple user serialization
-passport.serializeUser((user, done) => {
+passport.serializeUser((user: any, done) => {
   done(null, user);
 });
 
-passport.deserializeUser((user, done) => {
+passport.deserializeUser((user: any, done) => {
   done(null, user);
 });
+
+const callbackUrl = "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback";
 
 // Configure Twitch Strategy
-passport.use(new TwitchStrategy(
-  {
-    clientID: process.env.TWITCH_CLIENT_ID,
-    clientSecret: process.env.TWITCH_CLIENT_SECRET,
-    callbackURL: "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback",
-    scope: ["chat:read", "chat:edit"],
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-      const user = {
-        id: profile.id,
-        login: profile.login,
-        accessToken
-      };
+passport.use(
+  new TwitchStrategy(
+    {
+      clientID: process.env.TWITCH_CLIENT_ID,
+      clientSecret: process.env.TWITCH_CLIENT_SECRET,
+      callbackURL: callbackUrl,
+      scope: ["chat:read", "chat:edit"],
+      passReqToCallback: true,
+    },
+    async (req: any, accessToken: string, refreshToken: string, profile: any, done: any) => {
+      try {
+        console.log("Twitch auth callback received:", { profile: profile.login });
 
-      // Store the config
-      let config = await storage.getConfig();
-      if (!config) {
-        await storage.saveConfig({
-          twitchChannel: profile.login,
-          twitchUsername: profile.login,
-          twitchToken: `oauth:${accessToken}`,
-          enabled: true,
-          killMessageTemplate: "(kills) enemies eliminated",
-          deathMessageTemplate: "Defeated in battle",
-          matchEndMessageTemplate: "Match complete with (kills) kills"
-        });
-      } else {
-        await storage.updateConfig({
-          twitchChannel: profile.login,
-          twitchUsername: profile.login,
-          twitchToken: `oauth:${accessToken}`
-        });
+        const user = {
+          id: profile.id,
+          login: profile.login,
+          accessToken
+        };
+
+        // Store initial config
+        const config = await storage.getConfig();
+        if (!config) {
+          await storage.saveConfig({
+            twitchChannel: profile.login,
+            twitchUsername: profile.login,
+            twitchToken: `oauth:${accessToken}`,
+            enabled: true,
+            killMessageTemplate: "(kills) enemies eliminated",
+            deathMessageTemplate: "Defeated in battle",
+            matchEndMessageTemplate: "Match complete with (kills) kills"
+          });
+        } else {
+          await storage.updateConfig({
+            twitchChannel: profile.login,
+            twitchUsername: profile.login,
+            twitchToken: `oauth:${accessToken}`
+          });
+        }
+
+        return done(null, user);
+      } catch (error) {
+        console.error("Auth error:", error);
+        return done(error);
       }
-
-      return done(null, user);
-    } catch (error) {
-      return done(error as Error);
     }
-  }
-));
+  )
+);
 
 export function isAuthenticated(req: any, res: any, next: any) {
   if (req.isAuthenticated()) {

@@ -14,20 +14,22 @@ app.use(express.urlencoded({ extended: true }));
 
 // Session configuration
 const MemoryStore = memorystore(session);
-app.use(session({
+const sessionMiddleware = session({
   secret: "warzone-twitch-bot-secret",
   name: "warzone.sid",
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   store: new MemoryStore({
     checkPeriod: 86400000 // prune expired entries every 24h
   }),
   cookie: {
-    secure: false,
+    secure: false, // Must be false as we're not using HTTPS in development
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+});
+
+app.use(sessionMiddleware);
 
 // Initialize Passport
 app.use(passport.initialize());
@@ -36,35 +38,37 @@ app.use(passport.session());
 // Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
-
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (req.path.startsWith("/api")) {
       log(`${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
     }
   });
-
   next();
 });
 
-
 // Start the server
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    const server = await registerRoutes(app);
 
-  // Error handling
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    console.error("Server Error:", err);
-    res.status(500).json({ message: "Internal Server Error" });
-  });
+    // Error handling
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error("Server Error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    });
 
-  if (process.env.NODE_ENV !== "production") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    if (process.env.NODE_ENV !== "production") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
+
+    server.listen(5000, "0.0.0.0", () => {
+      log("Server running on port 5000");
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
   }
-
-  server.listen(5000, "0.0.0.0", () => {
-    log("Server running on port 5000");
-  });
-})().catch(console.error);
+})();

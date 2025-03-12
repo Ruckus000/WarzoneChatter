@@ -7,40 +7,54 @@ import { isAuthenticated } from "./auth";
 
 export async function registerRoutes(app: Express) {
   // Auth routes
-  app.get("/api/auth/twitch", passport.authenticate("twitch"));
+  app.get("/api/auth/twitch", (req, res, next) => {
+    console.log("Starting Twitch auth...");
+    passport.authenticate("twitch")(req, res, next);
+  });
 
   app.get("/api/auth/twitch/callback", (req, res, next) => {
-    passport.authenticate("twitch", (err, user) => {
+    console.log("Received callback from Twitch");
+
+    passport.authenticate("twitch", (err: any, user: any) => {
       if (err) {
-        console.error("Authentication error:", err);
+        console.error("Auth callback error:", err);
         return res.redirect("/?error=auth_failed");
       }
 
       if (!user) {
+        console.error("No user returned from auth");
         return res.redirect("/?error=auth_failed");
       }
 
-      req.logIn(user, (err) => {
-        if (err) {
-          console.error("Login error:", err);
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Login error:", loginErr);
           return res.redirect("/?error=auth_failed");
         }
-        return res.redirect("/");
+
+        console.log("User successfully authenticated:", user.login);
+        res.redirect("/");
       });
     })(req, res, next);
   });
 
   app.post("/api/auth/logout", (req, res) => {
+    const wasAuthenticated = req.isAuthenticated();
     req.logout(() => {
+      if (wasAuthenticated) {
+        console.log("User logged out successfully");
+      }
       res.json({ success: true });
     });
   });
 
   app.get("/api/auth/status", (req, res) => {
-    res.json({
+    const status = {
       authenticated: req.isAuthenticated(),
       user: req.user
-    });
+    };
+    console.log("Auth status:", status);
+    res.json(status);
   });
 
   // Protected config routes
