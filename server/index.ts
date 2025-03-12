@@ -30,63 +30,68 @@ const sessionMiddleware = session({
     checkPeriod: 86400000 // prune expired entries every 24h
   }),
   cookie: {
-    secure: process.env.NODE_ENV === "production",
+    secure: "auto", // Let express determine based on request protocol
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     path: '/',
-    sameSite: process.env.NODE_ENV === "production" ? 'strict' : 'lax'
+    sameSite: 'lax' // Always use lax to support OAuth redirects
   }
 });
 
 // Add debug logging for session tracking
 app.use((req, res, next) => {
-  console.log(`[Session Debug] Request started:`, {
+  console.log(`[Session Debug] Request:`, {
     method: req.method,
     path: req.path,
     cookies: req.headers.cookie,
-    origin: req.headers.origin
+    origin: req.headers.origin,
+    secure: req.secure,
+    protocol: req.protocol
   });
   next();
 });
 
-// CORS configuration
+// Handle CORS before session middleware
 app.use((req, res, next) => {
-  const allowedOrigins = process.env.NODE_ENV === "production" 
-    ? ["https://warzonechatter.jphilistin12.repl.co"]
-    : ["http://localhost:5000"];
-
   const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:5000',
+    'https://warzonechatter.jphilistin12.repl.co'
+  ];
+
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
+
   next();
 });
 
+// Apply session middleware
 app.use(sessionMiddleware);
 
-// Initialize Passport after session middleware
+// Initialize Passport after session
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Final response logging
+// Track session status for debugging
 app.use((req, res, next) => {
   const originalEnd = res.end;
   res.end = function(...args) {
-    console.log(`[Session Debug] Request completed:`, {
+    console.log(`[Session Debug] Response:`, {
       method: req.method,
       path: req.path,
       sessionID: req.sessionID,
       hasSession: !!req.session,
       isAuthenticated: req.isAuthenticated?.(),
       statusCode: res.statusCode,
-      cookies: req.headers.cookie
+      headers: res.getHeaders()
     });
     // @ts-ignore
     originalEnd.apply(res, args);
@@ -115,7 +120,6 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // Configure server timeouts
     server.keepAliveTimeout = 120000; // 2 minutes
     server.headersTimeout = 120000; // 2 minutes
 

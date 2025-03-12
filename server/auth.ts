@@ -7,15 +7,19 @@ if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
   throw new Error("Missing Twitch OAuth credentials");
 }
 
-// Add debug logging
 function logAuthEvent(event: string, data?: any) {
   console.log(`[Auth Debug] ${event}`, data);
 }
 
-// Simple user serialization
+// Clean user object for serialization
 passport.serializeUser((user: any, done) => {
-  logAuthEvent("Serializing user", { id: user.id });
-  done(null, { id: user.id, login: user.login, accessToken: user.accessToken });
+  const cleanUser = {
+    id: user.id,
+    login: user.login,
+    accessToken: user.accessToken
+  };
+  logAuthEvent("Serializing user", { id: cleanUser.id });
+  done(null, cleanUser);
 });
 
 passport.deserializeUser((serialized: any, done) => {
@@ -30,9 +34,10 @@ const BASE_URL = process.env.NODE_ENV === "production"
 
 const CALLBACK_URL = `${BASE_URL}/api/auth/twitch/callback`;
 
-logAuthEvent("Initializing Twitch Strategy", { 
+logAuthEvent("Initializing Twitch Strategy", {
   callbackUrl: CALLBACK_URL,
-  clientId: process.env.TWITCH_CLIENT_ID?.substring(0, 8) + "..."
+  clientId: process.env.TWITCH_CLIENT_ID?.substring(0, 8) + "...",
+  env: process.env.NODE_ENV
 });
 
 passport.use(
@@ -42,14 +47,16 @@ passport.use(
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
       callbackURL: CALLBACK_URL,
       scope: ["chat:read", "chat:edit"],
-      state: true // Enable CSRF protection
+      state: true,
+      passReqToCallback: true
     },
-    async (accessToken: string, refreshToken: string, profile: any, done: any) => {
+    async (req: any, accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
         logAuthEvent("Processing Twitch callback", {
           profileId: profile.id,
           login: profile.login,
-          hasAccessToken: !!accessToken
+          hasAccessToken: !!accessToken,
+          sessionID: req.sessionID
         });
 
         const user = {
@@ -58,6 +65,7 @@ passport.use(
           accessToken
         };
 
+        // Initialize or update config
         try {
           const config = await storage.getConfig();
           if (!config) {
@@ -79,9 +87,13 @@ passport.use(
           }
         } catch (error) {
           logAuthEvent("Config error", { error });
+          // Continue auth even if config fails
         }
 
-        logAuthEvent("Authentication successful", { userId: user.id });
+        logAuthEvent("Authentication successful", {
+          userId: user.id,
+          sessionID: req.sessionID
+        });
         return done(null, user);
       } catch (error) {
         logAuthEvent("Authentication failed", { error });
