@@ -49,6 +49,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Increase timeout
+app.use((req, res, next) => {
+  req.socket.setTimeout(120000); // 2 minutes
+  res.setTimeout(120000, () => {
+    console.log('[Server] Request timeout:', req.url);
+    res.status(408).send('Request timeout');
+  });
+  next();
+});
+
 app.use(sessionMiddleware);
 
 // Initialize Passport after session middleware
@@ -75,6 +85,10 @@ app.use(passport.session());
     } else {
       serveStatic(app);
     }
+
+    // Configure server timeouts
+    server.keepAliveTimeout = 120000; // 2 minutes
+    server.headersTimeout = 120000; // 2 minutes
 
     server.listen(5000, "0.0.0.0", () => {
       console.log("[Server] Started on port 5000");

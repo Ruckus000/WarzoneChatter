@@ -17,12 +17,20 @@ export async function registerRoutes(app: Express) {
       hasSession: !!req.session
     });
 
+    // Set a longer timeout for the auth request
+    req.socket.setTimeout(120000);
+    res.setTimeout(120000);
+
     passport.authenticate("twitch", {
       scope: ["chat:read", "chat:edit"]
     })(req, res, next);
   });
 
   app.get("/api/auth/twitch/callback", (req, res, next) => {
+    // Set a longer timeout for the callback
+    req.socket.setTimeout(120000);
+    res.setTimeout(120000);
+
     logRouteEvent("Auth callback received", { 
       query: req.query,
       sessionId: req.sessionID,
