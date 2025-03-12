@@ -3,7 +3,6 @@ import { Strategy as TwitchStrategy } from "passport-twitch-latest";
 import { storage } from "./storage";
 import type { Config } from "@shared/schema";
 
-// Passport serialization
 passport.serializeUser((user: any, done) => {
   done(null, user);
 });
@@ -16,7 +15,6 @@ if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
   throw new Error("Missing Twitch OAuth credentials");
 }
 
-// Setup Twitch Strategy
 passport.use(
   new TwitchStrategy(
     {
@@ -24,7 +22,6 @@ passport.use(
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
       callbackURL: "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback",
       scope: ["chat:read", "chat:edit"],
-      state: true
     },
     async (_accessToken, _refreshToken, profile: any, done: any) => {
       try {
