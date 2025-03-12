@@ -7,7 +7,6 @@ if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
   throw new Error("Missing Twitch OAuth credentials");
 }
 
-// Simple user serialization
 passport.serializeUser((user: any, done) => {
   done(null, user);
 });
@@ -16,15 +15,15 @@ passport.deserializeUser((user: any, done) => {
   done(null, user);
 });
 
-const callbackUrl = "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback";
-
 // Configure Twitch Strategy
 passport.use(
   new TwitchStrategy(
     {
       clientID: process.env.TWITCH_CLIENT_ID,
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
-      callbackURL: callbackUrl,
+      callbackURL: process.env.NODE_ENV === "production"
+        ? "https://warzonechatter.jphilistin12.repl.co/api/auth/twitch/callback"
+        : "http://localhost:5000/api/auth/twitch/callback",
       scope: ["chat:read", "chat:edit"],
       passReqToCallback: true,
     },

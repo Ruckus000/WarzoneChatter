@@ -9,7 +9,10 @@ export async function registerRoutes(app: Express) {
   // Auth routes
   app.get("/api/auth/twitch", (req, res, next) => {
     console.log("Starting Twitch auth...");
-    passport.authenticate("twitch")(req, res, next);
+    passport.authenticate("twitch", {
+      successRedirect: "/",
+      failureRedirect: "/?error=auth_failed"
+    })(req, res, next);
   });
 
   app.get("/api/auth/twitch/callback", (req, res, next) => {
@@ -33,7 +36,8 @@ export async function registerRoutes(app: Express) {
         }
 
         console.log("User successfully authenticated:", user.login);
-        res.redirect("/");
+        // Always redirect to the root path after successful authentication
+        return res.redirect("/");
       });
     })(req, res, next);
   });
